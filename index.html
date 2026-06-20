@@ -35,7 +35,7 @@
         .crew-selection {
             display: flex;
             gap: 12px;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
         }
         .crew-option {
             flex: 1;
@@ -60,6 +60,39 @@
             background: #e9f5fe;
             border-color: #0076d6;
             color: #0076d6;
+        }
+        .crew-details {
+            background: #f8f9fa;
+            border: 1px solid #eaeaea;
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .input-group label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #555;
+            text-transform: uppercase;
+        }
+        .text-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 16px; /* Prevents zoom on iOS */
+            background: #fff;
+        }
+        .text-input:focus {
+            border-color: #0076d6;
+            outline: none;
         }
         .item-card {
             display: flex;
@@ -94,7 +127,7 @@
             padding: 8px;
             border: 1px solid #ccc;
             border-radius: 8px;
-            font-size: 16px; /* Prevents iOS auto-zoom */
+            font-size: 16px;
             text-align: center;
             font-weight: bold;
         }
@@ -158,8 +191,12 @@
         .remaining-met {
             color: #28a745;
         }
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+        }
         .save-btn {
-            width: 100%;
+            flex: 2;
             background-color: #28a745;
             color: white;
             border: none;
@@ -173,6 +210,20 @@
         .save-btn:active {
             background-color: #1e7e34;
         }
+        .clear-btn {
+            flex: 1;
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            padding: 15px;
+            font-size: 15px;
+            font-weight: bold;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+        .clear-btn:active {
+            background-color: #545b62;
+        }
     </style>
 </head>
 <body>
@@ -182,11 +233,22 @@
     
     <div class="crew-selection">
         <label class="crew-option">
-            <input type="radio" name="crew" value="1" checked onchange="calculateEverything()"> 1 Man
+            <input type="radio" name="crew" value="1" id="crew-1" checked onchange="calculateEverything()"> 1 Man
         </label>
         <label class="crew-option">
-            <input type="radio" name="crew" value="2" onchange="calculateEverything()"> 2 Man
+            <input type="radio" name="crew" value="2" id="crew-2" onchange="calculateEverything()"> 2 Man
         </label>
+    </div>
+
+    <div class="crew-details">
+        <div class="input-group">
+            <label for="foreman-name">Foreman Name</label>
+            <input type="text" id="foreman-name" class="text-input" placeholder="Enter foreman name" oninput="saveNames()">
+        </div>
+        <div class="input-group">
+            <label for="crew-member-name">Crew Member Name(s)</label>
+            <input type="text" id="crew-member-name" class="text-input" placeholder="Enter member name(s)" oninput="saveNames()">
+        </div>
     </div>
 
     <div id="item-cards-container"></div>
@@ -210,7 +272,10 @@
         </div>
     </div>
 
-    <button class="save-btn" onclick="saveDailyLog()">💾 Save Daily Log File</button>
+    <div class="action-buttons">
+        <button class="clear-btn" onclick="clearForm()">🧹 Clear</button>
+        <button class="save-btn" onclick="saveDailyLog()">💾 Save Daily Log File</button>
+    </div>
 </div>
 
 <script>
@@ -226,6 +291,7 @@
         { name: "Warning sticker", val: 0.02 }
     ];
 
+    // Build DOM structure
     const container = document.getElementById('item-cards-container');
     items.forEach((item, index) => {
         const card = document.createElement('div');
@@ -246,10 +312,48 @@
     let currentGrandTotal = 0;
     let currentActiveCrew = "1 Man";
 
+    // Separate saving function for names to minimize loop footprint
+    function saveNames() {
+        localStorage.setItem('dom_sc_foreman', document.getElementById('foreman-name').value);
+        localStorage.setItem('dom_sc_member', document.getElementById('crew-member-name').value);
+    }
+
+    // Load saved data out of localStorage on page initialization
+    function loadSavedData() {
+        const savedCrew = localStorage.getItem('dom_sc_crew');
+        if (savedCrew === "2") {
+            document.getElementById('crew-2').checked = true;
+        } else {
+            document.getElementById('crew-1').checked = true;
+        }
+
+        // Restore foreman and crew member strings
+        document.getElementById('foreman-name').value = localStorage.getItem('dom_sc_foreman') || "";
+        document.getElementById('crew-member-name').value = localStorage.getItem('dom_sc_member') || "";
+
+        items.forEach((item, index) => {
+            const savedQty = localStorage.getItem(`dom_sc_qty_${index}`);
+            if (savedQty !== null) {
+                document.getElementById(`qty-${index}`).value = savedQty;
+            }
+        });
+    }
+
     function calculateEverything() {
         currentGrandTotal = 0;
+        
+        const checkedCrewInput = document.querySelector('input[name="crew"]:checked');
+        const crewValue = checkedCrewInput ? checkedCrewInput.value : "1";
+        
+        localStorage.setItem('dom_sc_crew', crewValue);
+
         items.forEach((item, index) => {
-            const qty = parseInt(document.getElementById(`qty-${index}`).value) || 0;
+            const qtyElement = document.getElementById(`qty-${index}`);
+            const qtyStr = qtyElement.value;
+            
+            localStorage.setItem(`dom_sc_qty_${index}`, qtyStr);
+
+            const qty = parseInt(qtyStr) || 0;
             const lineTotal = qty * item.val;
             currentGrandTotal += lineTotal;
             document.getElementById(`total-${index}`).innerText = lineTotal.toFixed(2);
@@ -257,11 +361,11 @@
 
         document.getElementById('grand-total').innerText = currentGrandTotal.toFixed(2);
 
-        const isOneMan = document.querySelector('input[name="crew"]:checked').value === "1";
+        const isOneMan = crewValue === "1";
         currentActiveCrew = isOneMan ? "1 Man" : "2 Man";
         
         let target8 = isOneMan ? 26 : 31;
-        let target10 = isOneMan ? 32.5 : 32;
+        let target10 = isOneMan ? 32.5 : 39;
 
         document.getElementById('target-8-val').innerText = target8;
         document.getElementById('target-10-val').innerText = target10;
@@ -281,13 +385,31 @@
         }
     }
 
+    function clearForm() {
+        if (confirm("Are you sure you want to clear all current quantities and names for a new log?")) {
+            localStorage.removeItem('dom_sc_foreman');
+            localStorage.removeItem('dom_sc_member');
+            document.getElementById('foreman-name').value = "";
+            document.getElementById('crew-member-name').value = "";
+
+            items.forEach((_, index) => {
+                localStorage.removeItem(`dom_sc_qty_${index}`);
+                document.getElementById(`qty-${index}`).value = "";
+            });
+            calculateEverything();
+        }
+    }
+
     function saveDailyLog() {
         const now = new Date();
         const dateStr = now.toLocaleDateString();
         const timeStr = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-        const fileDate = now.getFullYear() + '-' + (now.getMonth() + 1) + '-' + now.getDate();
+        const fileDate = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
 
-        let logContent = `====================================\n   DOM/SC NORM DAILY LOG REPORT\n====================================\nDate: ${dateStr}\nTime: ${timeStr}\nCrew Setup: ${currentActiveCrew} Crew\n------------------------------------\n\nLOGGED QUANTITIES:\n`;
+        const foremanName = document.getElementById('foreman-name').value || "Not Entered";
+        const crewMemberName = document.getElementById('crew-member-name').value || "Not Entered";
+
+        let logContent = `====================================\n   DOM/SC NORM DAILY LOG REPORT\n====================================\nDate: ${dateStr}\nTime: ${timeStr}\nForeman: ${foremanName}\nCrew Member: ${crewMemberName}\nCrew Setup: ${currentActiveCrew} Crew\n------------------------------------\n\nLOGGED QUANTITIES:\n`;
 
         items.forEach((item, index) => {
             const qty = parseInt(document.getElementById(`qty-${index}`).value) || 0;
@@ -298,7 +420,7 @@
 
         let isOneMan = currentActiveCrew === "1 Man";
         let target8 = isOneMan ? 26 : 31;
-        let target10 = isOneMan ? 32.5 : 32;
+        let target10 = isOneMan ? 32.5 : 39;
         let s8 = (target8 - currentGrandTotal) <= 0 ? `MET (+${Math.abs(target8 - currentGrandTotal).toFixed(2)} OVER)` : `${(target8 - currentGrandTotal).toFixed(2)} remaining`;
         let s10 = (target10 - currentGrandTotal) <= 0 ? `MET (+${Math.abs(target10 - currentGrandTotal).toFixed(2)} OVER)` : `${(target10 - currentGrandTotal).toFixed(2)} remaining`;
 
@@ -312,6 +434,9 @@
         link.click();
         document.body.removeChild(link);
     }
+
+    // Run setup pipeline
+    loadSavedData();
     calculateEverything();
 </script>
 </body>
